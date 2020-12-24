@@ -4,12 +4,13 @@ import csv
 import time
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import os
-# from tensorflow.compat.v1.keras.layers import CuDNNLSTM
+from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-save_file_path = './Just-LSTM_byCZ'
-if not os.path.isdir(save_file_path):
-    os.mkdir(save_file_path)
+# %env CUDA_VISIBLE_DEVICES=0
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(gpus[0], True)
+tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit = 10000)])
 
 paddeddata_csv = pd.read_csv("paddeddata1.csv") # 讀資料進來
 paddeddata_array = np.array(paddeddata_csv) # 轉為矩陣
@@ -34,14 +35,13 @@ _delay = 12*6
 sample_list = []
 target_list = []
 train_size = 0.7
-neurons = [64, 128, 256]
-source_dim = 3
-predict_dim = 1
+neurons = [64, 128, 256, 512]
+# neurons = [64, 128, 256]
+# neurons = [256]
 test_times = 10
 _epochs = 100
-BUFFER_SIZE = 65535
-BATCH_SIZE = 256
-A_layers = 4
+_batch_size = 64
+A_layers = 3
 # 參數設定------------------------------------------------------------------------------------------
 def GenDataset(inputdata, starttime, lasttime, lookback, delay, samp_list, targ_list):
     for i in range(lasttime-starttime+1):
@@ -88,53 +88,52 @@ print("x_test.shape:{}".format(x_test.shape))
 print("y_train.shape:{}".format(y_train.shape))
 print("y_test.shape:{}".format(y_test.shape))
 
-# train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-# test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-# # print(train_dataset.element_spec)
-# # print(test_dataset.element_spec)
-
-# train_dataset = train_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
-# test_dataset = test_dataset.batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
+# with open("{}LSTM.csv".format(A+2), 'a+') as predictcsv:
+#     writer = csv.writer(predictcsv)
+#     writer.writerow(["第n次", "test_loss"])
 
 for A in range(A_layers):
+# for A in range(1, 3):
     for neuron in neurons:
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
-        total_test_mse = 0
-        total_test_mae  = 0
-        
-        with open(save_file_path+"/{}LSTM_Just-LSTM.csv".format(A+1), 'a+') as predictcsv:
-            writer = csv.writer(predictcsv)
-            writer.writerow(["第n次", "test_mse", "test_mae"])
-
+        total_test_loss = 0
+        total_test_mae = 0
+        # if neuron == 256 or neuron == 512:
+        #     _batch_size = 256
+        # if A == 0 or A == 1:
+        #     _epochs = 60
         for n in range(test_times):
-            # model = tf.keras.models.Sequential()
-            encoder_input = tf.keras.Input(shape=(_lookback, source_dim))
-
+            model = tf.keras.models.Sequential()
+            model.add((CuDNNLSTM(neuron,
+                       input_shape=(_lookback, 3), 
+                       return_sequences=True, 
+                    #    dropout=0.2,
+                       # recurrent_dropout=0.2
+                    #    activation='tanh',
+                    #    recurrent_activation='sigmoid',
+                    #    recurrent_dropout=0,
+                       )))
             for aa in range(A):
-                next_encoder_input = tf.keras.layers.LSTM(neuron, 
-                                                     return_sequences=True, 
-                                                    #   dropout=0.2,
-                                                    #   recurrent_dropout=0,
-                                                     )(encoder_input)
-                encoder_input = next_encoder_input
-
-            encoder_output = tf.keras.layers.LSTM(neuron, 
-                                                  return_sequences=False,
-                                                #   dropout=0.2,
-                                                #   recurrent_dropout=0
-                                                  )(encoder_input)
-            
-            # 自己的想法...
-            predict_output = tf.keras.layers.Dense(_delay)(encoder_output)
+                model.add((CuDNNLSTM(neuron, 
+                                     return_sequences=True, 
+                                    #  dropout=0.2,
+                                     # recurrent_dropout=0.2
+                                    #  activation='tanh',
+                                    #  recurrent_activation='sigmoid',
+                                    #  recurrent_dropout=0,
+                                     )))
+            model.add((CuDNNLSTM(_delay, 
+                                 return_sequences=False
+                                 )))
             # -----------------------------------------------------
-            model = tf.keras.models.Model(inputs=encoder_input, outputs=predict_output)
-
-            model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-
             model.summary()
+            model.compile(optimizer='adam', 
+                          loss='mse',
+                          #   metrics=['mae']
+                          )
             # checkpoint
-            filepath=save_file_path+"/weights.best.hdf5"
+            filepath="weights.best.hdf5"
             checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath, 
                                                             monitor='val_loss', 
                                                             verbose=1, 
@@ -144,34 +143,33 @@ for A in range(A_layers):
 
             history = model.fit(x_train, y_train,
                                 epochs=_epochs,
-                                batch_size=BATCH_SIZE,
+                                batch_size=_batch_size,
                                 callbacks=callbacks_list,
                                 validation_split=0.3,
                                 verbose=1)
 
-            model.load_weights(filepath)
-            test_mse, test_mae = model.evaluate(x_test, y_test, batch_size=BATCH_SIZE)
-            print("test_results:{}, {}".format(test_mse, test_mae))
-            total_test_mse += test_mse
-            total_test_mae += test_mae
+            model.load_weights("weights.best.hdf5")
+            test_results = model.evaluate(x_test, y_test, batch_size=_batch_size)
+            print("test_results:{}".format(test_results))
+            total_test_loss += test_results
 
-            predictions = model.predict(x_test, verbose=1, batch_size=BATCH_SIZE)
-            print("predictions:{}".format(predictions))
+            predictions = model.predict(x_test, verbose=1, batch_size=_batch_size)
+            print(predictions.shape)
 
+            example_history = x_test[1069, :, 0].reshape(-1, 1)
+            example_true_future = y_test[1069, :].reshape(-1, 1)
             x1 = np.arange(1, _lookback+1, 1)
             x2 = np.arange(_lookback+1, _lookback+_delay+1, 1)
             # ---------------------------------------------------------------------------------------------------------------------------------
-            example_history = x_test[1069, :, 0].reshape(-1, 1)
-            example_true_future = y_test[1069, :].reshape(-1, 1)            
             plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[1069, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
-            plt.title("Multi-Layers LSTM({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.title("one_of_test_results")
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}Just-LSTM_288-72_1.png".format(n+1, neuron, A+1))
+            plt.savefig("{}th_{}neurons_test_result_{}LSTM_1.png".format(n+1, neuron, A+2))
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[2222, :, 0].reshape(-1, 1)
             example_true_future = y_test[2222, :].reshape(-1, 1)
@@ -179,11 +177,11 @@ for A in range(A_layers):
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[2222, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
-            plt.title("Multi-Layers LSTM({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.title("one_of_test_results")
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}Just-LSTM_288-72_2.png".format(n+1, neuron, A+1))
+            plt.savefig("{}th_{}neurons_test_result_{}LSTM_2.png".format(n+1, neuron, A+2))
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[69, :, 0].reshape(-1, 1)
             example_true_future = y_test[69, :].reshape(-1, 1)
@@ -191,26 +189,25 @@ for A in range(A_layers):
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[69, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
-            plt.title("Multi-Layers LSTM({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.title("one_of_test_results")
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}Just-LSTM_288-72_3.png".format(n+1, neuron, A+1))
+            plt.savefig("{}th_{}neurons_test_result_{}LSTM_3.png".format(n+1, neuron, A+2))
 
-            with open(save_file_path+"/{}LSTM_Just-LSTM.csv".format(A+1), 'a+') as predictcsv:
+            with open("{}LSTM.csv".format(A+2), 'a+') as predictcsv:
                 writer = csv.writer(predictcsv)
-                # writer.writerow(["第n次", "test_mse", "test_mae"])
-                writer.writerow(["{}, {}".format(n+1, neuron), test_mse, test_mae])
+                # writer.writerow(["第n次", "test_loss"])
+                writer.writerow(["{}, {}".format(n+1, neuron), test_results])
             
             total_loss += np.array(history.history["loss"])
             total_val_loss += np.array(history.history["val_loss"])
 
-        mean_test_mse = total_test_mse/test_times
-        mean_test_mae = total_test_mae/test_times
-        with open(save_file_path+"/{}LSTM_Just-LSTM.csv".format(A+1), 'a+') as predictcsv:
+        mean_test_loss = total_test_loss/test_times
+        with open("{}LSTM.csv".format(A+2), 'a+') as predictcsv:
             writer = csv.writer(predictcsv)
             # writer.writerow(["第n次", "test_loss", "test_mae"])
-            writer.writerow(["mean,{}".format(neuron), mean_test_mse, mean_test_mae])
+            writer.writerow(["mean,{}".format(neuron), mean_test_loss])
         epochs = range(1, len(total_loss)+1)
         mean_loss = total_loss/test_times
         mean_val_loss = total_val_loss/test_times
@@ -221,15 +218,43 @@ for A in range(A_layers):
         plt.xlabel("epochs")
         plt.ylabel("Mean Squared Error(MSE)")
         plt.legend()
-        plt.savefig(save_file_path+"/{}_{}Just-LSTM_Mean_of_10time_test_MSE.png".format(neuron, A+1))
+        plt.savefig("{}_{}LSTM_Mean_of_{}_test_loss.png".format(neuron, A+2, n+1))
 
-        rmse_mean_loss = mean_loss**0.5
-        rmse_mean_val_loss = mean_val_loss**0.5
-        plt.figure()
-        plt.plot(epochs, rmse_mean_loss, 's-', color='b', ms=0.5, label="Training loss")
-        plt.plot(epochs, rmse_mean_val_loss, 'o-', color='r', ms=0.5, label="Validation loss")
-        plt.title("Training and validation loss (test {} time)".format(test_times))
-        plt.xlabel("epochs")
-        plt.ylabel("Root Mean Squared Error(RMSE)")
-        plt.legend()
-        plt.savefig(save_file_path+"/{}_{}Just-LSTM_Mean_of_10time_test_RMSE.png".format(neuron, A+1))
+# ---------------------------------------------------------------------------------------------------------
+# model = tf.keras.Sequential()
+# model.add((tf.keras.layers.LSTM(64,
+#                 input_shape=(_lookback, 3), 
+#                 # batch_input_shape=(_batch_size, _lookback, 3),
+#                 return_sequences=True, 
+#                 dropout=0.2,
+#                 # recurrent_dropout=0.2
+#                 activation='tanh',
+#                 recurrent_activation='sigmoid',
+#                 recurrent_dropout=0,
+#                 )))
+# # for aa in range(A):
+# #     model.add((LSTM(neuron, 
+# #                     return_sequences=True, 
+# #                     dropout=0.2,
+# #                     recurrent_dropout=0.2
+# #                     )))
+# model.add((tf.keras.layers.LSTM(_delay, 
+#                 return_sequences=False,
+#                 activation='tanh',
+#                 recurrent_activation='sigmoid',
+#                 recurrent_dropout=0,
+#                 )))
+# # -----------------------------------------------------
+# model.summary()
+# model.compile(optimizer=tf.keras.optimizers.Adam(), 
+#             loss='mse',
+#             #   metrics=['mae']
+#             )
+
+
+# history = model.fit(x_train, y_train,
+#                     epochs=_epochs,
+#                     batch_size=512,
+#                     # callbacks=callbacks_list,
+#                     validation_split=0.3,
+#                     verbose=1)

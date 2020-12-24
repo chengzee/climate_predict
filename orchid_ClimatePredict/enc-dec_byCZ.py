@@ -7,8 +7,8 @@ import tensorflow as tf
 import os
 # from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 save_file_path = './Enc-Dec_byCZ'
 if not os.path.isdir(save_file_path):
@@ -45,51 +45,6 @@ _epochs = 100
 BUFFER_SIZE = 65535
 BATCH_SIZE = 256
 A_layers = 5
-
-class Encode(tf.keras.Model):
-    def __init__(self, enc_units, _layers):
-        super(Encode, self).__init__()
-        self.enc_units = enc_units
-        self.layer = _layers
-        # self.lstm_returndseqTrue = tf.keras.layers.LSTM(self.enc_units,
-        #                                             return_sequences=True)
-        self.lstm_returnTrue = tf.keras.layers.LSTM(self.enc_units,
-                                                    return_sequences=True,
-                                                    return_state=True)
-        self.lstm_returnFalse = tf.keras.layers.LSTM(self.enc_units)
-        # self.last_lstm = tf.keras.layers.LSTM(self.enc_units,
-        #                                       return_sequences=True,
-        #                                       return_state=True)
-    def call(self, x):
-        stack_hidden_state = x
-        # stack_hidden_state = self.lstm(x)
-        stack_hidden_state, last_hidden_state, last_cell_state = self.lstm_returnTrue(stack_hidden_state)
-        for n in range(self.layer):
-            stack_hidden_state, last_hidden_state, last_cell_state = self.lstm_returnTrue(stack_hidden_state, initial_state=[last_hidden_state, last_cell_state])
-        last_hidden_state = self.lstm_returnFalse(stack_hidden_state, initial_state=[last_hidden_state, last_cell_state])
-        # Encoder_output = last_stack_hidden_state
-        # last_stack_hidden_state, last_hidden_state, last_cell_state = self.last_lstm(stack_hidden_state)
-        # return last_stack_hidden_state, last_hidden_state, last_cell_state 
-        return last_hidden_state 
-        
-class Decode(tf.keras.Model):
-    def __init__(self, dec_units, _layers):
-        super(Decode, self).__init__()
-        self.dec_units = dec_units
-        self.layer = _layers
-        self.lstm_returnTrue = tf.keras.layers.LSTM(self.dec_units,
-                                                    return_state=True, 
-                                                    return_sequences=True)
-        # self.lstm_returnFalse = tf.keras.layers.LSTM(self.dec_units,
-        #                                              return_sequences=False)
-    def call(self, x):
-        stack_hidden_state = x
-        stack_hidden_state, last_hidden_state, last_cell_state = self.lstm_returnTrue(stack_hidden_state)
-        for n in range((self.layer)):
-            stack_hidden_state, last_hidden_state, last_cell_state = self.lstm_returnTrue(stack_hidden_state, initial_state=[last_hidden_state, last_cell_state])
-        stack_hidden_state, last_hidden_state, last_cell_state = self.lstm_returnTrue(stack_hidden_state, initial_state=[last_hidden_state, last_cell_state])
-        return stack_hidden_state 
-
 
 # 參數設定------------------------------------------------------------------------------------------
 def GenDataset(inputdata, starttime, lasttime, lookback, delay, samp_list, targ_list):
@@ -145,7 +100,7 @@ print("y_test.shape:{}".format(y_test.shape))
 # train_dataset = train_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
 # test_dataset = test_dataset.batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
 
-for A in range(1, 5):
+for A in range(A_layers):
     for neuron in neurons:
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
@@ -267,7 +222,7 @@ for A in range(1, 5):
                                                             monitor='val_loss', 
                                                             verbose=1, 
                                                             save_best_only=True,
-                                                            save_weights_only=True, 
+                                                            # save_weights_only=True, 
                                                             mode='min')
             callbacks_list = [checkpoint]
 
