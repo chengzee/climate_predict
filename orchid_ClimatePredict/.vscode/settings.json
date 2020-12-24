@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "C:\\Users\\HUANG\\Anaconda3\\envs\\tf-gpu\\python.exe",
+    "python.pythonPath": "C:\\Users\\HUANG\\Anaconda3\\envs\\tf-gpu-2.2\\python.exe",
     "git.ignoreLimitWarning": true,
     "jupyter.jupyterServerType": "local"
 }

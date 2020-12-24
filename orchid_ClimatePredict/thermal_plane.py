@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import cv2
 # width, length = (3, 4)
-width, length = (2, 3)
+width, length = (3, 3)
 humid= np.zeros((width, length))
 temp = np.zeros((width, length))
 for w in range(width):
@@ -22,7 +22,7 @@ for w in range(width):
             print("Unexpected Error")
 # 在opencv中是(x, y)
 # dst_shape = (39, 28)
-dst_shape = (2600, 1400)
+dst_shape = (2600, 2800)
 humid_interpolation = cv2.resize(humid, dst_shape)
 temp_interpolation = cv2.resize(temp, dst_shape)
 print(humid_interpolation)
