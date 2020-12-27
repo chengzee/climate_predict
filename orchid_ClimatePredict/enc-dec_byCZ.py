@@ -37,13 +37,12 @@ _delay = 12*6
 sample_list = []
 target_list = []
 train_size = 0.7
-neurons = [64, 128, 256]
+neurons = [64, 128, 256, 512]
 source_dim = 3
 predict_dim = 1
 test_times = 10
+BATCH_SIZE = 1024
 _epochs = 100
-BUFFER_SIZE = 65535
-BATCH_SIZE = 256
 A_layers = 5
 
 # 參數設定------------------------------------------------------------------------------------------
@@ -92,14 +91,6 @@ print("x_test.shape:{}".format(x_test.shape))
 print("y_train.shape:{}".format(y_train.shape))
 print("y_test.shape:{}".format(y_test.shape))
 
-# train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-# test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-# # print(train_dataset.element_spec)
-# # print(test_dataset.element_spec)
-
-# train_dataset = train_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
-# test_dataset = test_dataset.batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
-
 for A in range(A_layers):
     for neuron in neurons:
         total_loss = np.zeros((_epochs))
@@ -112,55 +103,7 @@ for A in range(A_layers):
             writer.writerow(["第n次", "test_mse", "test_mae"])
 
         for n in range(test_times):
-            
-            # # Functional----------------------------------------------------------------------
-            # encoder_input = tf.keras.Input(shape=(_lookback, source_dim))
 
-            # # for aa in range(A):
-            # #     encoder_input = tf.keras.layers.LSTM(neuron, 
-            # #                                           return_sequences=True, 
-            # #                                         #   dropout=0.2,
-            # #                                         #   recurrent_dropout=0,
-            # #                                           )(encoder_input)
-            # #encoder_input = tf.keras.layers.LSTM(neuron, 
-            # #                                      return_sequences=False, 
-            # #                                    #   dropout=0.2,
-            # #                                    #   recurrent_dropout=0,
-            # #                                      )(encoder_input)
-
-            # encoder = Encode(neuron, A)
-            # encoder_output = encoder(encoder_input)
-
-            
-            # # RepeatVector參考來源如下
-            # # https://machinelearningmastery.com/encoder-decoder-attention-sequence-to-sequence-prediction-keras/
-            # # decoder_input = tf.keras.layers.RepeatVector(_delay)(encoder_output)
-            # # ----------------------------------------------------------------------------------------------------
-            # # 自己的想法...
-            # decoder_input = tf.keras.layers.Dense(_delay)(encoder_output)
-            # decoder_input = tf.reshape(decoder_input, [-1, _delay, 1])
-            # # ----------------------------------------------------------------------------------------------------
-            # print(tf.shape(decoder_input))
-
-            # decoder = Decode(neuron, A)
-            # decoder_output = decoder(decoder_input)
-
-            # # for aa in range(A):
-            # #     decoder_input = tf.keras.layers.LSTM(neuron,
-            # #                                          return_sequences=True,
-            # #                                         #  recurrent_dropout=0
-            # #                                          )(decoder_input)
-                                                     
-            # # decoder_output = tf.keras.layers.LSTM(neuron,
-            # #                                       return_sequences=True,
-            # #                                     #   recurrent_dropout=0, 
-            # #                                       )(decoder_input)
-
-            # # predict_output = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(predict_dim))(decoder_output)
-            # predict_output = tf.keras.layers.Dense(predict_dim)(decoder_output)
-
-            # predict_output = tf.reshape(predict_output, [-1, _delay])
-            # -----------------------------------------------------
             # Sequential
             # input_seq = tf.keras.Input(_lookback, source_dim)
             model = tf.keras.Sequential()
@@ -168,48 +111,22 @@ for A in range(A_layers):
             for aa in range(A):
                 model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
             model.add(tf.keras.layers.LSTM(neuron, return_sequences=False))
-            model.add(tf.keras.layers.Dense(_delay))
-            model.add(tf.keras.layers.Reshape((_delay, 1)))
+
+            # # RepeatVector參考來源如下
+            # # https://machinelearningmastery.com/encoder-decoder-attention-sequence-to-sequence-prediction-keras/
+            # 與"自己的想法"擇一...
+            model.add(tf.keras.layers.RepeatVector(_delay))
+            # # ----------------------------------------------------------------------------------------------------
+            # # 自己的想法...
+            # model.add(tf.keras.layers.Dense(_delay))
+            # model.add(tf.keras.layers.Reshape((_delay, 1)))
+            # # ----------------------------------------------------------------------------------------------------
+
             model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
             for aa in range(A):
                 model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
             model.add(tf.keras.layers.Dense(predict_dim))
 
-            # -------------------------------------------------------
-            # encoder_input = tf.keras.Input(shape=(_lookback, source_dim))
-            # for aa in range(A):
-            #     next_encoder_input = tf.keras.layers.LSTM(neuron, 
-            #                                          return_sequences=True, 
-            #                                         #   dropout=0.2,
-            #                                         #   recurrent_dropout=0,
-            #                                          )(encoder_input)
-            #     encoder_input = next_encoder_input
-
-            # encoder_output = tf.keras.layers.LSTM(neuron, 
-            #                                       return_sequences=False,
-            #                                     #   dropout=0.2,
-            #                                     #   recurrent_dropout=0
-            #                                       )(next_encoder_input)
-
-            # decoder_input = tf.keras.layers.Dense(_delay)(encoder_output)
-            # decoder_input = tf.reshape(decoder_input, [-1, _delay, 1])
-            # for aa in range(A):
-            #     next_decoder_input = tf.keras.layers.LSTM(neuron, 
-            #                                          return_sequences=True, 
-            #                                         #   dropout=0.2,
-            #                                         #   recurrent_dropout=0,
-            #                                          )(decoder_input)
-            #     decoder_input = next_decoder_input
-            
-            # decoder_output = tf.keras.layers.LSTM(neuron, 
-            #                                       return_sequences=True,
-            #                                     #   dropout=0.2,
-            #                                     #   recurrent_dropout=0
-            #                                       )(next_decoder_input)
-            
-            # predict_output = tf.keras.layers.Dense(predict_dim)(decoder_output)
-
-            # model = tf.keras.models.Model(inputs=encoder_input, outputs=predict_output)
             
             model.compile(optimizer='adam', loss='mse', metrics=['mae'])
 

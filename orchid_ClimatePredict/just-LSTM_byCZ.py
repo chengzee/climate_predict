@@ -4,10 +4,20 @@ import csv
 import time
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import os
+import os 
 # from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-save_file_path = './Just-LSTM_byCZ'
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+  tf.config.experimental.set_memory_growth(physical_devices[0], True)
+except:
+  # Invalid device or cannot modify virtual devices once initialized.
+  pass
+# tf.config.experimental.set_virtual_device_configuration(physical_devices[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit = 9000)])
+
+save_file_path = './Just_LSTM_byCZ'
 if not os.path.isdir(save_file_path):
     os.mkdir(save_file_path)
 
@@ -34,14 +44,14 @@ _delay = 12*6
 sample_list = []
 target_list = []
 train_size = 0.7
-neurons = [64, 128, 256]
+neurons = [64, 128, 256, 512]
 source_dim = 3
 predict_dim = 1
 test_times = 10
+BATCH_SIZE = 512
 _epochs = 100
-BUFFER_SIZE = 65535
-BATCH_SIZE = 256
-A_layers = 4
+A_layers = 6
+
 # 參數設定------------------------------------------------------------------------------------------
 def GenDataset(inputdata, starttime, lasttime, lookback, delay, samp_list, targ_list):
     for i in range(lasttime-starttime+1):
@@ -88,15 +98,7 @@ print("x_test.shape:{}".format(x_test.shape))
 print("y_train.shape:{}".format(y_train.shape))
 print("y_test.shape:{}".format(y_test.shape))
 
-# train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-# test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-# # print(train_dataset.element_spec)
-# # print(test_dataset.element_spec)
-
-# train_dataset = train_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
-# test_dataset = test_dataset.batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE)
-
-for A in range(A_layers):
+for A in range(1, 5):
     for neuron in neurons:
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
@@ -108,37 +110,25 @@ for A in range(A_layers):
             writer.writerow(["第n次", "test_mse", "test_mae"])
 
         for n in range(test_times):
-            # model = tf.keras.models.Sequential()
-            encoder_input = tf.keras.Input(shape=(_lookback, source_dim))
-
-            for aa in range(A):
-                next_encoder_input = tf.keras.layers.LSTM(neuron, 
-                                                     return_sequences=True, 
-                                                    #   dropout=0.2,
-                                                    #   recurrent_dropout=0,
-                                                     )(encoder_input)
-                encoder_input = next_encoder_input
-
-            encoder_output = tf.keras.layers.LSTM(neuron, 
-                                                  return_sequences=False,
-                                                #   dropout=0.2,
-                                                #   recurrent_dropout=0
-                                                  )(encoder_input)
+            model = tf.keras.models.Sequential()
             
-            # 自己的想法...
-            predict_output = tf.keras.layers.Dense(_delay)(encoder_output)
-            # -----------------------------------------------------
-            model = tf.keras.models.Model(inputs=encoder_input, outputs=predict_output)
-
+            model.add(tf.keras.Input(shape=(_lookback, source_dim)))
+            for aa in range(A):
+                model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
+            model.add(tf.keras.layers.LSTM(_delay, return_sequences=False))
+            
             model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-
+            
             model.summary()
             # checkpoint
-            filepath=save_file_path+"/weights.best.hdf5"
-            checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath, 
+            filepath = save_file_path + "/weights.best.h5"
+            # filepath = save_file_path + "/training_checkpoints.ckpt"
+
+            checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, 
                                                             monitor='val_loss', 
                                                             verbose=1, 
                                                             save_best_only=True,
+                                                            # save_weights_only=True, 
                                                             mode='min')
             callbacks_list = [checkpoint]
 
