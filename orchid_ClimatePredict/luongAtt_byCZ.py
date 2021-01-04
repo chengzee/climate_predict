@@ -4,19 +4,13 @@ import csv
 import time
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import os 
-from tensorflow.compat.v1.keras.layers import CuDNNLSTM
+import os
+# from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-physical_devices = tf.config.list_physical_devices('GPU')
-try:
-  tf.config.experimental.set_memory_growth(physical_devices[0], True)
-except:
-  # Invalid device or cannot modify virtual devices once initialized.
-  pass
-
-save_file_path = './Just_LSTM_byCZ'
+save_file_path = './LuongAtt_byCZ'
 if not os.path.isdir(save_file_path):
     os.mkdir(save_file_path)
 
@@ -44,15 +38,12 @@ sample_list = []
 target_list = []
 train_size = 0.7
 neurons = [64, 128, 256, 512]
-# neurons = [512]
-# neurons = [256, 512]
 source_dim = 3
 predict_dim = 1
 test_times = 10
-BATCH_SIZE = 256
-SHUFFLE_BUFFER_SIZE = 100
+BATCH_SIZE = 1024
 _epochs = 150
-A_layers = 6
+A_layers = 5
 
 # 參數設定------------------------------------------------------------------------------------------
 def GenDataset(inputdata, starttime, lasttime, lookback, delay, samp_list, targ_list):
@@ -86,33 +77,45 @@ print("target_arr.shape:{}".format(target_arr.shape))
 
 # # # # # # # # # # # # # # # # # # # # # # # # # 
 # -------------------------------------------------------------------------------------------------------------------
+# train test split
+# from sklearn.model_selection import train_test_split
+# x_train, x_test, y_train, y_test = train_test_split(sample_arr, target_arr[:, :, 0], test_size=0.3)
 print("len(sample_arr):{}".format(len(sample_arr)))
 print("len(sample_arr)*train_size:{}".format(len(sample_arr)*train_size))
 x_train = sample_arr[:int(len(sample_arr)*train_size)]
 x_test = sample_arr[int(len(sample_arr)*train_size):]
 y_train = target_arr[:int(len(sample_arr)*train_size), :, 0]
 y_test = target_arr[int(len(sample_arr)*train_size):, :, 0]
-# # train test split
-# from sklearn.model_selection import train_test_split
-# x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.3)
 print("x_train.shape:{}".format(x_train.shape))
-print("y_train.shape:{}".format(y_train.shape))
-# print("x_valid.shape:{}".format(x_valid.shape))
-# print("y_valid.shape:{}".format(y_valid.shape))
 print("x_test.shape:{}".format(x_test.shape))
+print("y_train.shape:{}".format(y_train.shape))
 print("y_test.shape:{}".format(y_test.shape))
 
-# train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-# train_dataset = train_dataset.shuffle(SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
+class Encoder(tf.keras.layers.Layer):
+    def __init__(self, _neurons, enc_layers):
+        super(Encoder, self).__init__()
+        self.layers = enc_layers
+        self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, return_sequences=True, return_state=True)
 
-# valid_dataset = tf.data.Dataset.from_tensor_slices((x_valid, y_valid))
-# valid_dataset = valid_dataset.batch(BATCH_SIZE, drop_remainder=True)
+    def call(self, input_seq):
+        output_seq, h, c = self.multi_layers_lstm(input_seq)
+        for i in range(self.layers):
+            output_seq, h, c = self.multi_layers_lstm(output_seq, initial_state=[h, c])
+        
+        return output_seq, h, c
 
-# test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-# test_dataset = test_dataset.batch(BATCH_SIZE, drop_remainder=True)
-# print(train_dataset)
-# print(valid_dataset)
-# print(test_dataset)
+class Decoder(tf.keras.layers.Layer):
+    def __init__(self, _neurons, dec_layers):
+        super(Decoder, self).__init__()
+        self.layers = dec_layers
+        self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, return_sequences=True)
+
+    def call(self, input_seq):
+        output_seq = self.multi_layers_lstm(input_seq)
+        for i in range(self.layers):
+            output_seq = self.multi_layers_lstm(output_seq)
+        
+        return output_seq
 
 for A in range(A_layers):
     for neuron in neurons:
@@ -121,20 +124,59 @@ for A in range(A_layers):
         total_test_mse = 0
         total_test_mae  = 0
         
-        with open(save_file_path+"/{}LSTM_Just-LSTM.csv".format(A+1), 'a+') as predictcsv:
+        with open(save_file_path+"/{}LSTM_Enc-Dec.csv".format(A+1), 'a+') as predictcsv:
             writer = csv.writer(predictcsv)
             writer.writerow(["第n次", "test_mse", "test_mae"])
 
         for n in range(test_times):
-            model = tf.keras.models.Sequential()
+
+
+            # 參考 https://levelup.gitconnected.com/building-seq2seq-lstm-with-luong-attention-in-keras-for-time-series-forecasting-1ee00958decb
+            # functional
+            input_seq = tf.keras.Input(shape=(_lookback, source_dim))
+            encoder_stack_h, enc_last_h, enc_lact_c = Encoder(neuron, A)(input_seq)
+            decoder_input = tf.keras.layers.RepeatVector(_delay)(encoder_stack_h)
+            decoder_stack_h = Decoder(neuron, A)(decoder_input)
+            # attention layer
+            attention = tf.keras.layers.dot([decoder_stack_h, encoder_stack_h], axes=[2, 2])
+            attention = tf.keras.layers.Activation('softmax')(attention)
+            print(attention)
+            context = tf.keras.layers.dot([attention, encoder_stack_h], axes=[2, 1])
+            print(context)
+            decoder_combine_context = tf.keras.layers.concatenate([context, decoder_stack_h])
+            print(decoder_combine_context)
+            out = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(predict_dim))(decoder_combine_context)
+            model = tf.keras.models.Model(inputs=input_seq, outputs=out)
+
+
+            # # Sequential
+            # model = tf.keras.Sequential()
+            # model.add(tf.keras.Input(shape=(_lookback, source_dim)))
+            # for aa in range(A):
+            #     model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
+            # model.add(tf.keras.layers.LSTM(neuron, return_sequences=False))
+
+            # # decoder input
+            # # # RepeatVector參考來源如下
+            # # # https://machinelearningmastery.com/encoder-decoder-attention-sequence-to-sequence-prediction-keras/
+            # # 與"自己的想法"擇一...
+            # model.add(tf.keras.layers.RepeatVector(_delay))
+            # # # ----------------------------------------------------------------------------------------------------
+            # # # 自己的想法...
+            # # model.add(tf.keras.layers.Dense(_delay))
+            # # model.add(tf.keras.layers.Reshape((_delay, 1)))
+            # # # ----------------------------------------------------------------------------------------------------
             
-            model.add(tf.keras.Input(shape=(_lookback, source_dim)))
-            for aa in range(A):
-                model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
-            model.add(tf.keras.layers.LSTM(_delay, return_sequences=False))
-            # model.build((BATCH_SIZE, _lookback, source_dim))
+            # # decoder stack of hidden state 
+            # model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
+            # # Attention在此之前做法與Enc-Dec相同
+            # for aa in range(A):
+            #     model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
+            # model.add(tf.keras.layers.Dense(predict_dim))
+
+            
             model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-            
+
             model.summary()
             # checkpoint
             filepath = save_file_path + "/weights.best.h5"
@@ -149,7 +191,6 @@ for A in range(A_layers):
             callbacks_list = [checkpoint]
 
             history = model.fit(x_train, y_train,
-                                # validation_data=valid_dataset, 
                                 epochs=_epochs,
                                 batch_size=BATCH_SIZE,
                                 callbacks=callbacks_list,
@@ -157,14 +198,12 @@ for A in range(A_layers):
                                 verbose=1)
 
             model.load_weights(filepath)
-            test_mse, test_mae = model.evaluate(x_train, y_train,
-                                batch_size=BATCH_SIZE,)
+            test_mse, test_mae = model.evaluate(x_test, y_test, batch_size=BATCH_SIZE)
             print("test_results:{}, {}".format(test_mse, test_mae))
             total_test_mse += test_mse
             total_test_mae += test_mae
 
-            predictions = model.predict(x_train, verbose=1,
-                                batch_size=BATCH_SIZE,)
+            predictions = model.predict(x_test, verbose=1, batch_size=BATCH_SIZE)
             print("predictions:{}".format(predictions))
 
             x1 = np.arange(1, _lookback+1, 1)
@@ -172,47 +211,41 @@ for A in range(A_layers):
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[1069, :, 0].reshape(-1, 1)
             example_true_future = y_test[1069, :].reshape(-1, 1)            
-            fig1 = plt.figure()
+            plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[1069, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
-            plt.title("Multi-Layers LSTM({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.title("Encoder-Decoder({}neurons_{}_layers_LSTM)".format(neuron, A+1))
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}Just-LSTM_288-72_1.png".format(n+1, neuron, A+1))
-            # plt.clf()
-            plt.close(fig1)
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_288-72_1.png".format(n+1, neuron, A+1))
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[2222, :, 0].reshape(-1, 1)
             example_true_future = y_test[2222, :].reshape(-1, 1)
-            fig2 = plt.figure()
+            plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[2222, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
-            plt.title("Multi-Layers LSTM({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.title("Encoder-Decoder({}neurons_{}_layers_LSTM)".format(neuron, A+1))
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}Just-LSTM_288-72_2.png".format(n+1, neuron, A+1))
-            # plt.clf()
-            plt.close(fig2)
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_288-72_2.png".format(n+1, neuron, A+1))
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[69, :, 0].reshape(-1, 1)
             example_true_future = y_test[69, :].reshape(-1, 1)
-            fig3 = plt.figure()
+            plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[69, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
-            plt.title("Multi-Layers LSTM({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.title("Encoder-Decoder({}neurons_{}_layers_LSTM)".format(neuron, A+1))
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}Just-LSTM_288-72_3.png".format(n+1, neuron, A+1))
-            # plt.clf()
-            plt.close(fig2)
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_288-72_3.png".format(n+1, neuron, A+1))
 
-            with open(save_file_path+"/{}LSTM_Just-LSTM.csv".format(A+1), 'a+') as predictcsv:
+            with open(save_file_path+"/{}LSTM_Enc-Dec.csv".format(A+1), 'a+') as predictcsv:
                 writer = csv.writer(predictcsv)
                 # writer.writerow(["第n次", "test_mse", "test_mae"])
                 writer.writerow(["{}, {}".format(n+1, neuron), test_mse, test_mae])
@@ -222,33 +255,29 @@ for A in range(A_layers):
 
         mean_test_mse = total_test_mse/test_times
         mean_test_mae = total_test_mae/test_times
-        with open(save_file_path+"/{}LSTM_Just-LSTM.csv".format(A+1), 'a+') as predictcsv:
+        with open(save_file_path+"/{}LSTM_Enc-Dec.csv".format(A+1), 'a+') as predictcsv:
             writer = csv.writer(predictcsv)
             # writer.writerow(["第n次", "test_loss", "test_mae"])
             writer.writerow(["mean,{}".format(neuron), mean_test_mse, mean_test_mae])
         epochs = range(1, len(total_loss)+1)
         mean_loss = total_loss/test_times
         mean_val_loss = total_val_loss/test_times
-        figMSE = plt.figure()
+        plt.figure()
         plt.plot(epochs, mean_loss, 's-', color='b', ms=0.5, label="Training loss")
         plt.plot(epochs, mean_val_loss, 'o-', color='r', ms=0.5, label="Validation loss")
         plt.title("Training and validation loss (test {} time)".format(test_times))
         plt.xlabel("epochs")
         plt.ylabel("Mean Squared Error(MSE)")
         plt.legend()
-        plt.savefig(save_file_path+"/{}_{}Just-LSTM_Mean_of_10time_test_MSE.png".format(neuron, A+1))
-        # plt.clf()
-        plt.close(figMSE)
+        plt.savefig(save_file_path+"/{}_{}Enc-Dec_Mean_of_10time_test_MSE.png".format(neuron, A+1))
 
         rmse_mean_loss = mean_loss**0.5
         rmse_mean_val_loss = mean_val_loss**0.5
-        figRMSE = plt.figure()
+        plt.figure()
         plt.plot(epochs, rmse_mean_loss, 's-', color='b', ms=0.5, label="Training loss")
         plt.plot(epochs, rmse_mean_val_loss, 'o-', color='r', ms=0.5, label="Validation loss")
         plt.title("Training and validation loss (test {} time)".format(test_times))
         plt.xlabel("epochs")
         plt.ylabel("Root Mean Squared Error(RMSE)")
         plt.legend()
-        plt.savefig(save_file_path+"/{}_{}Just-LSTM_Mean_of_10time_test_RMSE.png".format(neuron, A+1))
-        # plt.clf()
-        plt.close(figRMSE)
+        plt.savefig(save_file_path+"/{}_{}Enc-Dec_Mean_of_10time_test_RMSE.png".format(neuron, A+1))
