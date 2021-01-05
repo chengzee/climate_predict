@@ -211,7 +211,7 @@ for A in range(A_layers):
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[1069, :, 0].reshape(-1, 1)
             example_true_future = y_test[1069, :].reshape(-1, 1)            
-            plt.figure()
+            fig1 = plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[1069, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
@@ -220,10 +220,11 @@ for A in range(A_layers):
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
             plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_288-72_1.png".format(n+1, neuron, A+1))
+            plt.close(fig1)
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[2222, :, 0].reshape(-1, 1)
             example_true_future = y_test[2222, :].reshape(-1, 1)
-            plt.figure()
+            fig2 = plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[2222, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
@@ -232,10 +233,11 @@ for A in range(A_layers):
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
             plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_288-72_2.png".format(n+1, neuron, A+1))
+            plt.close(fig2)
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[69, :, 0].reshape(-1, 1)
             example_true_future = y_test[69, :].reshape(-1, 1)
-            plt.figure()
+            fig3 = plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
             plt.plot(x2, predictions[69, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
@@ -244,7 +246,8 @@ for A in range(A_layers):
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
             plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_288-72_3.png".format(n+1, neuron, A+1))
-
+            plt.close(fig3)
+            
             with open(save_file_path+"/{}LSTM_Enc-Dec.csv".format(A+1), 'a+') as predictcsv:
                 writer = csv.writer(predictcsv)
                 # writer.writerow(["第n次", "test_mse", "test_mae"])
@@ -262,7 +265,7 @@ for A in range(A_layers):
         epochs = range(1, len(total_loss)+1)
         mean_loss = total_loss/test_times
         mean_val_loss = total_val_loss/test_times
-        plt.figure()
+        figMSE = plt.figure()
         plt.plot(epochs, mean_loss, 's-', color='b', ms=0.5, label="Training loss")
         plt.plot(epochs, mean_val_loss, 'o-', color='r', ms=0.5, label="Validation loss")
         plt.title("Training and validation loss (test {} time)".format(test_times))
@@ -270,10 +273,11 @@ for A in range(A_layers):
         plt.ylabel("Mean Squared Error(MSE)")
         plt.legend()
         plt.savefig(save_file_path+"/{}_{}Enc-Dec_Mean_of_10time_test_MSE.png".format(neuron, A+1))
+        plt.close(figMSE)
 
         rmse_mean_loss = mean_loss**0.5
         rmse_mean_val_loss = mean_val_loss**0.5
-        plt.figure()
+        figRMSE = plt.figure()
         plt.plot(epochs, rmse_mean_loss, 's-', color='b', ms=0.5, label="Training loss")
         plt.plot(epochs, rmse_mean_val_loss, 'o-', color='r', ms=0.5, label="Validation loss")
         plt.title("Training and validation loss (test {} time)".format(test_times))
@@ -281,3 +285,4 @@ for A in range(A_layers):
         plt.ylabel("Root Mean Squared Error(RMSE)")
         plt.legend()
         plt.savefig(save_file_path+"/{}_{}Enc-Dec_Mean_of_10time_test_RMSE.png".format(neuron, A+1))
+        plt.close(figRMSE)
