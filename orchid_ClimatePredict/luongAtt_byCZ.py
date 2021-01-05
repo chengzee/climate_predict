@@ -96,6 +96,14 @@ class Encoder(tf.keras.layers.Layer):
         super(Encoder, self).__init__()
         self.layers = enc_layers
         self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, return_sequences=True, return_state=True)
+    
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'layers': self.layers,
+            'multi_layers_lstm': self.multi_layers_lstm,
+        })
+        return config
 
     def call(self, input_seq):
         output_seq, h, c = self.multi_layers_lstm(input_seq)
@@ -110,6 +118,14 @@ class Decoder(tf.keras.layers.Layer):
         self.layers = dec_layers
         self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, return_sequences=True)
 
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'layers': self.layers,
+            'multi_layers_lstm': self.multi_layers_lstm,
+        })
+        return config
+        
     def call(self, input_seq):
         output_seq = self.multi_layers_lstm(input_seq)
         for i in range(self.layers):
@@ -130,12 +146,11 @@ for A in range(A_layers):
 
         for n in range(test_times):
 
-
             # 參考 https://levelup.gitconnected.com/building-seq2seq-lstm-with-luong-attention-in-keras-for-time-series-forecasting-1ee00958decb
             # functional
             input_seq = tf.keras.Input(shape=(_lookback, source_dim))
             encoder_stack_h, enc_last_h, enc_lact_c = Encoder(neuron, A)(input_seq)
-            decoder_input = tf.keras.layers.RepeatVector(_delay)(encoder_stack_h)
+            decoder_input = tf.keras.layers.RepeatVector(_delay)(enc_last_h)
             decoder_stack_h = Decoder(neuron, A)(decoder_input)
             # attention layer
             attention = tf.keras.layers.dot([decoder_stack_h, encoder_stack_h], axes=[2, 2])
