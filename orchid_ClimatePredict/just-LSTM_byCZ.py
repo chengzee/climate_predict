@@ -114,7 +114,7 @@ print("y_test.shape:{}".format(y_test.shape))
 # print(valid_dataset)
 # print(test_dataset)
 
-for A in range(A_layers):
+for A in range(2, A_layers):
     for neuron in neurons:
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
