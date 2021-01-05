@@ -7,8 +7,14 @@ import tensorflow as tf
 import os
 # from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+  tf.config.experimental.set_memory_growth(physical_devices[0], True)
+except:
+  # Invalid device or cannot modify virtual devices once initialized.
+  pass
 
 save_file_path = './LuongAtt_byCZ'
 if not os.path.isdir(save_file_path):
@@ -125,7 +131,7 @@ class Decoder(tf.keras.layers.Layer):
             'multi_layers_lstm': self.multi_layers_lstm,
         })
         return config
-        
+
     def call(self, input_seq):
         output_seq = self.multi_layers_lstm(input_seq)
         for i in range(self.layers):
