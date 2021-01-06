@@ -7,11 +7,11 @@ import tensorflow as tf
 import os
 # from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
-  tf.config.experimental.set_memory_growth(physical_devices[0], True)
+  tf.config.experimental.set_memory_growth(physical_devices[1], True)
 except:
   # Invalid device or cannot modify virtual devices once initialized.
   pass
@@ -47,7 +47,7 @@ neurons = [64, 128, 256, 512]
 source_dim = 3
 predict_dim = 1
 test_times = 10
-BATCH_SIZE = 1024
+BATCH_SIZE = 256
 _epochs = 150
 A_layers = 5
 
@@ -101,22 +101,32 @@ class Encoder(tf.keras.layers.Layer):
     def __init__(self, _neurons, enc_layers):
         super(Encoder, self).__init__()
         self.layers = enc_layers
-        self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, return_sequences=True, return_state=True)
+        self.first_layers_lstm = tf.keras.layers.LSTM(_neurons, input_shape=(_lookback, source_dim), return_sequences=True)
+        self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, input_shape=(_lookback, _neurons), return_sequences=True)
+        # self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, return_sequences=True, return_state=True)
     
     def get_config(self):
         config = super().get_config().copy()
         config.update({
             'layers': self.layers,
+            'first_layers_lstm': self.first_layers_lstm,
             'multi_layers_lstm': self.multi_layers_lstm,
         })
         return config
 
     def call(self, input_seq):
-        output_seq, h, c = self.multi_layers_lstm(input_seq)
+        output_seq = self.first_layers_lstm(input_seq)
+        # output_seq, h, c = self.multi_layers_lstm(input_seq)
+        print("Encoder's input_seq.shape:{}".format(input_seq.shape))
+        print("Encoder's output_seq.shape:{}".format(output_seq.shape))
         for i in range(self.layers):
-            output_seq, h, c = self.multi_layers_lstm(output_seq, initial_state=[h, c])
+            output_seq = self.multi_layers_lstm(output_seq)
+            # output_seq, h, c = self.multi_layers_lstm(output_seq, initial_state=[h, c])
+        last_h = output_seq[:,-1,:]
+        print("Encoder's last_h.shape:{}".format(last_h.shape))
         
-        return output_seq, h, c
+        return output_seq, last_h
+        # return output_seq, h, c
 
 class Decoder(tf.keras.layers.Layer):
     def __init__(self, _neurons, dec_layers):
@@ -134,6 +144,8 @@ class Decoder(tf.keras.layers.Layer):
 
     def call(self, input_seq):
         output_seq = self.multi_layers_lstm(input_seq)
+        print("Decoder's input_seq.shape:{}".format(input_seq.shape))
+        print("Decoder's output_seq.shape:{}".format(output_seq.shape))
         for i in range(self.layers):
             output_seq = self.multi_layers_lstm(output_seq)
         
@@ -155,7 +167,7 @@ for A in range(A_layers):
             # 參考 https://levelup.gitconnected.com/building-seq2seq-lstm-with-luong-attention-in-keras-for-time-series-forecasting-1ee00958decb
             # functional
             input_seq = tf.keras.Input(shape=(_lookback, source_dim))
-            encoder_stack_h, enc_last_h, enc_lact_c = Encoder(neuron, A)(input_seq)
+            encoder_stack_h, enc_last_h = Encoder(neuron, A)(input_seq)
             decoder_input = tf.keras.layers.RepeatVector(_delay)(enc_last_h)
             decoder_stack_h = Decoder(neuron, A)(decoder_input)
             # attention layer

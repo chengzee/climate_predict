@@ -5,10 +5,17 @@ import time
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import os
-# from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+  tf.config.experimental.set_memory_growth(physical_devices[1], True)
+except:
+  # Invalid device or cannot modify virtual devices once initialized.
+  pass
+# tf.config.experimental.set_virtual_device_configuration(physical_devices[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit = 9000)])
+
 
 save_file_path = './Enc-Dec_byCZ'
 if not os.path.isdir(save_file_path):
@@ -38,7 +45,8 @@ _delay = 12*6
 sample_list = []
 target_list = []
 train_size = 0.7
-neurons = [64, 128, 256, 512]
+# neurons = [64, 128, 256, 512]
+neurons = [256, 512]
 source_dim = 3
 predict_dim = 1
 test_times = 10
@@ -102,8 +110,10 @@ print("x_test.shape:{}".format(x_test.shape))
 print("y_train.shape:{}".format(y_train.shape))
 print("y_test.shape:{}".format(y_test.shape))
 
-for A in range(A_layers):
+for A in range(A_layers-1, A_layers):
     for neuron in neurons:
+        if neuron == 512 or neuron == 256:
+            BATCH_SIZE=256
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
         total_test_mse = 0
