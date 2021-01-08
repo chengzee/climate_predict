@@ -38,18 +38,18 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-_lookback = 288
+_lookback = 288+144
 _delay = 12*6
 sample_list = []
 target_list = []
 train_size = 0.7
-neurons = [64, 128, 256, 512]
+neurons = [64, 128, 256, 512, 1024]
 source_dim = 3
 predict_dim = 1
 test_times = 10
 BATCH_SIZE = 256
 _epochs = 150
-A_layers = 5
+A_layers = 4
 
 # 參數設定------------------------------------------------------------------------------------------
 def GenDataset(inputdata, starttime, lasttime, lookback, delay, samp_list, targ_list):
