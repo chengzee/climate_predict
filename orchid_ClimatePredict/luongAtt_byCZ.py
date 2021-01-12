@@ -38,7 +38,7 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-_lookback = 288+144
+_lookback = 288+72
 _delay = 12*6
 sample_list = []
 target_list = []
@@ -90,8 +90,8 @@ print("len(sample_arr):{}".format(len(sample_arr)))
 print("len(sample_arr)*train_size:{}".format(len(sample_arr)*train_size))
 x_train = sample_arr[:int(len(sample_arr)*train_size)]
 x_test = sample_arr[int(len(sample_arr)*train_size):]
-y_train = target_arr[:int(len(sample_arr)*train_size), :, 0]
-y_test = target_arr[int(len(sample_arr)*train_size):, :, 0]
+y_train = target_arr[:int(len(sample_arr)*train_size), :, 0:predict_dim]
+y_test = target_arr[int(len(sample_arr)*train_size):, :, 0:predict_dim]
 print("x_train.shape:{}".format(x_train.shape))
 print("x_test.shape:{}".format(x_test.shape))
 print("y_train.shape:{}".format(y_train.shape))
