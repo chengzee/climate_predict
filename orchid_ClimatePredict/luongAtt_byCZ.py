@@ -38,7 +38,7 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-increase_length = 72
+increase_length = 144
 _lookback = 288+increase_length
 _delay = 12*6
 sample_list = []
@@ -166,7 +166,7 @@ for A in range(3, A_layers):
         total_test_mse = 0
         total_test_mae  = 0
         
-        with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention.csv".format(A+1), 'a+') as predictcsv:
+        with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention_{}input_len.csv".format(A+1, _lookback), 'a+') as predictcsv:
             writer = csv.writer(predictcsv)
             writer.writerow(["第n次", "test_mse", "test_mae"])
 
@@ -260,7 +260,7 @@ for A in range(3, A_layers):
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_360-72_1.png".format(n+1, neuron, A+1))
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-72_1.png".format(n+1, neuron, A+1, _lookback))
             plt.close(fig1)
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[2222-increase_length, :, 0].reshape(-1, 1)
@@ -273,7 +273,7 @@ for A in range(3, A_layers):
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_360-72_2.png".format(n+1, neuron, A+1))
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-72_2.png".format(n+1, neuron, A+1, _lookback))
             plt.close(fig2)
             # ---------------------------------------------------------------------------------------------------------------------------------
             example_history = x_test[269-increase_length, :, 0].reshape(-1, 1)
@@ -286,10 +286,10 @@ for A in range(3, A_layers):
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
-            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_360-72_3.png".format(n+1, neuron, A+1))
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-72_3.png".format(n+1, neuron, A+1, _lookback))
             plt.close(fig3)
             
-            with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention.csv".format(A+1), 'a+') as predictcsv:
+            with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention_{}input_len.csv".format(A+1, _lookback), 'a+') as predictcsv:
                 writer = csv.writer(predictcsv)
                 # writer.writerow(["第n次", "test_mse", "test_mae"])
                 writer.writerow(["{}, {}".format(n+1, neuron), test_mse, test_mae])
@@ -299,7 +299,7 @@ for A in range(3, A_layers):
 
         mean_test_mse = total_test_mse/test_times
         mean_test_mae = total_test_mae/test_times
-        with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention.csv".format(A+1), 'a+') as predictcsv:
+        with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention_{}input_len.csv".format(A+1, _lookback), 'a+') as predictcsv:
             writer = csv.writer(predictcsv)
             # writer.writerow(["第n次", "test_loss", "test_mae"])
             writer.writerow(["mean,{}".format(neuron), mean_test_mse, mean_test_mae])
@@ -313,7 +313,7 @@ for A in range(3, A_layers):
         plt.xlabel("epochs")
         plt.ylabel("Mean Squared Error(MSE)")
         plt.legend()
-        plt.savefig(save_file_path+"/{}_{}Enc-Dec_with_luong_attention_Mean_of_10time_test_MSE.png".format(neuron, A+1))
+        plt.savefig(save_file_path+"/{}_{}Enc-Dec_with_luong_attention_{}input_len_Mean_of_10time_test_MSE.png".format(neuron, A+1, _lookback))
         plt.close(figMSE)
 
         rmse_mean_loss = mean_loss**0.5
@@ -325,5 +325,5 @@ for A in range(3, A_layers):
         plt.xlabel("epochs")
         plt.ylabel("Root Mean Squared Error(RMSE)")
         plt.legend()
-        plt.savefig(save_file_path+"/{}_{}Enc-Dec_with_luong_attention_Mean_of_10time_test_RMSE.png".format(neuron, A+1))
+        plt.savefig(save_file_path+"/{}_{}Enc-Dec_with_luong_attention_{}input_len_Mean_of_10time_test_RMSE.png".format(neuron, A+1, _lookback))
         plt.close(figRMSE)
