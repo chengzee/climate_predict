@@ -152,7 +152,7 @@ class Decoder(tf.keras.layers.Layer):
         
         return output_seq
 
-for A in range(3, A_layers):
+for A in range(A_layers):
     for neuron in neurons:
         # if neuron == 64 and (A == 64 or A == 128):
         #     BATCH_SIZE = 2048
@@ -161,6 +161,8 @@ for A in range(3, A_layers):
         if neuron == 1024:
             BATCH_SIZE = 128
             _epochs = 50
+            if A >= 3:
+                BATCH_SIZE = 64
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
         total_test_mse = 0
