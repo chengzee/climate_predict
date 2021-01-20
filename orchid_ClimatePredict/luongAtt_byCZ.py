@@ -7,11 +7,11 @@ import tensorflow as tf
 import os
 # from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    tf.config.experimental.set_memory_growth(physical_devices[1], True)
 except:
     # Invalid device or cannot modify virtual devices once initialized.
     pass
@@ -38,7 +38,7 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-increase_length = 144
+increase_length = 216
 _lookback = 288+increase_length
 _delay = 12*6
 sample_list = []
