@@ -7,11 +7,11 @@ import tensorflow as tf
 import os
 # from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
-    tf.config.experimental.set_memory_growth(physical_devices[1], True)
+    tf.config.experimental.set_memory_growth(physical_devices[0], True)
 except:
     # Invalid device or cannot modify virtual devices once initialized.
     pass
@@ -38,13 +38,14 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-increase_length = 216
+increase_length = 72
 _lookback = 288+increase_length
 _delay = 12*6
 sample_list = []
 target_list = []
 train_size = 0.7
-neurons = [64, 128, 256, 512, 1024]
+# neurons = [64, 128, 256, 512, 1024]
+neurons = [1024]
 source_dim = 3
 predict_dim = 1
 test_times = 6
@@ -152,17 +153,18 @@ class Decoder(tf.keras.layers.Layer):
         
         return output_seq
 
-for A in range(A_layers):
+for A in range(1, 3):
     for neuron in neurons:
         # if neuron == 64 and (A == 64 or A == 128):
         #     BATCH_SIZE = 2048
         # if neuron > 256 and neuron <= 512:
         #     BATCH_SIZE = 512
-        if neuron == 1024:
-            BATCH_SIZE = 128
-            _epochs = 50
-            if A >= 3:
-                BATCH_SIZE = 64
+
+        # if neuron == 1024:
+        #     BATCH_SIZE = 128
+        #     _epochs = 50
+        #     if A >= 3:
+        #         BATCH_SIZE = 64
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
         total_test_mse = 0
@@ -278,18 +280,44 @@ for A in range(A_layers):
             plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-72_2.png".format(n+1, neuron, A+1, _lookback))
             plt.close(fig2)
             # ---------------------------------------------------------------------------------------------------------------------------------
-            example_history = x_test[269-increase_length, :, 0].reshape(-1, 1)
-            example_true_future = y_test[269-increase_length, :].reshape(-1, 1)
+            example_history = x_test[3067-increase_length, :, 0].reshape(-1, 1)
+            example_true_future = y_test[3067-increase_length, :].reshape(-1, 1)
             fig3 = plt.figure()
             plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
             plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
-            plt.plot(x2, predictions[269-increase_length, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
+            plt.plot(x2, predictions[3067-increase_length, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
             plt.title("Encoder-Decoder with Luong's Attention({}neurons_{}_layers_LSTM)".format(neuron, A+1))
             plt.xlabel("time")
             plt.ylabel("Relative Humidity(%)")
             plt.legend()
             plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-72_3.png".format(n+1, neuron, A+1, _lookback))
             plt.close(fig3)
+            # ---------------------------------------------------------------------------------------------------------------------------------
+            example_history = x_test[1500-increase_length, :, 0].reshape(-1, 1)
+            example_true_future = y_test[1500-increase_length, :].reshape(-1, 1)
+            fig4 = plt.figure()
+            plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
+            plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
+            plt.plot(x2, predictions[1500-increase_length, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
+            plt.title("Encoder-Decoder with Luong's Attention({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.xlabel("time")
+            plt.ylabel("Relative Humidity(%)")
+            plt.legend()
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-72_4.png".format(n+1, neuron, A+1, _lookback))
+            plt.close(fig4)
+            # ---------------------------------------------------------------------------------------------------------------------------------
+            example_history = x_test[1200-increase_length, :, 0].reshape(-1, 1)
+            example_true_future = y_test[1200-increase_length, :].reshape(-1, 1)
+            fig5 = plt.figure()
+            plt.plot(x1, example_history*(data_max[0]-data_min[0])+data_min[0], '-', color = 'r', ms=0.6, label = "history")
+            plt.plot(x2, example_true_future*(data_max[0]-data_min[0])+data_min[0], 'o-', color = 'fuchsia', ms=0.6, label = "true_future")
+            plt.plot(x2, predictions[1200-increase_length, :]*(data_max[0]-data_min[0])+data_min[0], 's-', color = 'b', ms=0.6, label = "predict_future")    
+            plt.title("Encoder-Decoder with Luong's Attention({}neurons_{}_layers_LSTM)".format(neuron, A+1))
+            plt.xlabel("time")
+            plt.ylabel("Relative Humidity(%)")
+            plt.legend()
+            plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-72_5.png".format(n+1, neuron, A+1, _lookback))
+            plt.close(fig5)
             
             with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention_{}input_len.csv".format(A+1, _lookback), 'a+') as predictcsv:
                 writer = csv.writer(predictcsv)
