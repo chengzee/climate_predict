@@ -38,7 +38,7 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-increase_length = 216
+increase_length = 288
 _lookback = 288+increase_length
 _delay = 12*6
 sample_list = []
@@ -152,7 +152,7 @@ class Decoder(tf.keras.layers.Layer):
         
         return output_seq
 
-for A in range(A_layers):
+for A in range(2, A_layers):
     for neuron in neurons:
         # if neuron == 64 and (A == 64 or A == 128):
         #     BATCH_SIZE = 2048
@@ -161,7 +161,7 @@ for A in range(A_layers):
         if neuron == 1024:
             BATCH_SIZE = 128
             _epochs = 50
-            if A >= 3:
+            if A >= 2:
                 BATCH_SIZE = 64
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
