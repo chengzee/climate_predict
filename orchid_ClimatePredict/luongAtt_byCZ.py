@@ -107,7 +107,7 @@ class Encoder(tf.keras.layers.Layer):
         self.first_layers_lstm = tf.keras.layers.LSTM(_neurons, input_shape=(_lookback, source_dim), return_sequences=True)
         self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, input_shape=(_lookback, _neurons), return_sequences=True)
         # self.multi_layers_lstm = tf.keras.layers.LSTM(_neurons, return_sequences=True, return_state=True)
-    
+
     def get_config(self):
         config = super().get_config().copy()
         config.update({
@@ -127,7 +127,7 @@ class Encoder(tf.keras.layers.Layer):
             # output_seq, h, c = self.multi_layers_lstm(output_seq, initial_state=[h, c])
         last_h = output_seq[:,-1,:]
         print("Encoder's last_h.shape:{}".format(last_h.shape))
-        
+
         return output_seq, last_h
         # return output_seq, h, c
 
@@ -151,7 +151,7 @@ class Decoder(tf.keras.layers.Layer):
         print("Decoder's output_seq.shape:{}".format(output_seq.shape))
         for i in range(self.layers):
             output_seq = self.multi_layers_lstm(output_seq)
-        
+
         return output_seq
 
 for A in range(A_layers):
@@ -164,13 +164,13 @@ for A in range(A_layers):
         if neuron == 1024:
             BATCH_SIZE = 128
             _epochs = 50
-            if A >= 3:
+            if A >= 2:
                 BATCH_SIZE = 64
         total_loss = np.zeros((_epochs))
         total_val_loss = np.zeros((_epochs))
         total_test_mse = 0
         total_test_mae  = 0
-        
+
         with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention_{}input_len_predict{}hours.csv".format(A+1, _lookback, hours), 'a+') as predictcsv:
             writer = csv.writer(predictcsv)
             writer.writerow(["第n次", "test_mse", "test_mae"])
@@ -212,7 +212,7 @@ for A in range(A_layers):
             # # model.add(tf.keras.layers.Dense(_delay))
             # # model.add(tf.keras.layers.Reshape((_delay, 1)))
             # # # ----------------------------------------------------------------------------------------------------
-            
+
             # # decoder stack of hidden state 
             # model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
             # # Attention在此之前做法與Enc-Dec相同
@@ -220,7 +220,7 @@ for A in range(A_layers):
             #     model.add(tf.keras.layers.LSTM(neuron, return_sequences=True))
             # model.add(tf.keras.layers.Dense(predict_dim))
 
-            
+
             model.compile(optimizer='adam', loss='mse', metrics=['mae'])
 
             model.summary()
@@ -319,12 +319,12 @@ for A in range(A_layers):
             plt.legend()
             plt.savefig(save_file_path+"/{}th_{}neurons_{}ENC-DEC_with_luong_att_{}-{}_5.png".format(n+1, neuron, A+1, _lookback, 12*hours))
             plt.close(fig5)
-            
+
             with open(save_file_path+"/{}LSTM_Enc-Dec_with_luong_attention_{}input_len_predict{}hours.csv".format(A+1, _lookback, hours), 'a+') as predictcsv:
                 writer = csv.writer(predictcsv)
                 # writer.writerow(["第n次", "test_mse", "test_mae"])
                 writer.writerow(["{}, {}".format(n+1, neuron), test_mse, test_mae])
-            
+
             total_loss += np.array(history.history["loss"])
             total_val_loss += np.array(history.history["val_loss"])
 
