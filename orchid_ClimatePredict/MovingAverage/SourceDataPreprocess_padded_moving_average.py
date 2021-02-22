@@ -83,7 +83,7 @@ for number in range(1):
             humid_avg = humid_moving_sum/ma
             temp_avg = temp_moving_sum/ma
             par_avg = par_moving_sum/ma
-            writer.writerow([paddeddata_array[n][0], humid_avg, temp_avg, par_avg])
+            writer.writerow([paddeddata_array[n][0], humid_avg, temp_avg, par_avg, paddeddata_array[n][4]])
 
     # with open("addfeature9{}.csv".format(number+1), 'w', newline='') as addfeaturecsvfile:
     #     writer = csv.writer(addfeaturecsvfile)
