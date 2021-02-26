@@ -16,11 +16,11 @@ except:
     # Invalid device or cannot modify virtual devices once initialized.
     pass
 
-save_file_path = './MA_LuongAtt_byCZ'
+save_file_path = './MA5_LuongAtt_byCZ'
 if not os.path.isdir(save_file_path):
     os.mkdir(save_file_path)
 
-paddeddata_csv = pd.read_csv("PaddedMovingAveragedata1.csv") # 讀資料進來
+paddeddata_csv = pd.read_csv("PaddedMovingAverage5_data1.csv") # 讀資料進來
 paddeddata_array = np.array(paddeddata_csv) # 轉為矩陣
 # -------------------------------------------------------------------------------------------------------------------
 # 最小最大值正規化 [0, 1]
