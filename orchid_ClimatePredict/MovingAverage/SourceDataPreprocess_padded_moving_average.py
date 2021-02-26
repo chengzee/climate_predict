@@ -4,7 +4,7 @@ import csv
 import time
 # -----------------------參數宣告-----------------------
 # 取平均之數量(moving average使用範圍)
-ma = 3
+ma = 5
 # -----------------------------------------------------
 # 共有 12 個固定點放置之無線感測節點
 for number in range(1):
@@ -63,7 +63,7 @@ for number in range(1):
                     paddeddata_array = np.vstack((np.vstack((paddeddata_array[:n+total_LossNumber], padding_array)), paddeddata_array[n+total_LossNumber:]))    
                     total_LossNumber += LossNumber
 
-    with open("PaddedMovingAveragedata{}.csv".format(number+1), 'w', newline='') as thecsvfile:
+    with open("PaddedMovingAverage{}_data{}.csv".format(ma, number+1), 'w', newline='') as thecsvfile:
         writer = csv.writer(thecsvfile)
         writer.writerow(["timestamps", "humidity", "temperature", "lightness", "count"])
         # for row in paddeddata_array[:]:
