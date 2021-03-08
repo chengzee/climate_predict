@@ -38,9 +38,9 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-increase_length = 0
+increase_length = 216
 _lookback = 288+increase_length
-hours = 1
+hours = 6
 _delay = 12*hours
 sample_list = []
 target_list = []
@@ -225,7 +225,7 @@ for A in range(A_layers):
 
             model.summary()
             # checkpoint
-            filepath = save_file_path + "/weights.best.h5"
+            filepath = save_file_path + "/weights{}.best.h5".format(_lookback)
             # filepath = save_file_path + "/training_checkpoints.ckpt"
 
             checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, 
