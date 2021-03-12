@@ -7,11 +7,11 @@ import tensorflow as tf
 import os
 # from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    tf.config.experimental.set_memory_growth(physical_devices[1], True)
 except:
     # Invalid device or cannot modify virtual devices once initialized.
     pass
@@ -38,21 +38,21 @@ count = 1
 the_first_nonzero = 0
 the_last_nonzero = 0
 n = 0
-increase_length = 216
+increase_length = 72
 _lookback = 288+increase_length
-hours = 2
+hours = 6
 _delay = 12*hours
 sample_list = []
 target_list = []
 train_size = 0.7
-neurons = [64, 128, 256, 512, 1024]
-# neurons = [1024]
+# neurons = [64, 128, 256, 512, 1024]
+neurons = [1024]
 source_dim = 3
 predict_dim = 1
 test_times = 6
 BATCH_SIZE = 256
 _epochs = 150
-A_layers = 4
+A_layers = 1
 
 # 參數設定------------------------------------------------------------------------------------------
 def GenDataset(inputdata, starttime, lasttime, lookback, delay, samp_list, targ_list):
@@ -154,7 +154,7 @@ class Decoder(tf.keras.layers.Layer):
 
         return output_seq
 
-for A in range(A_layers):
+for A in range(3, 4):
     for neuron in neurons:
         # if neuron == 64 and (A == 0 or A == 1):
         #     BATCH_SIZE = 2048
